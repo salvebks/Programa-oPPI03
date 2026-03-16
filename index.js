@@ -1,6 +1,4 @@
 import express from 'express';
-import express from 'express';
-
 // endereço e porta do servidor
 const host = 'localhost';
 const port = 3000;
