@@ -1,0 +1,23 @@
+{
+  "name": "programa-oppi03",
+  "version": "1.0.0",
+  "description": "",
+  "homepage": "https://github.com/salvebks/Programa-oPPI03#readme",
+  "bugs": {
+    "url": "https://github.com/salvebks/Programa-oPPI03/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/salvebks/Programa-oPPI03.git"
+  },
+  "license": "ISC",
+  "author": "murillo",
+  "type": "module",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "dependencies": {
+    "express": "^5.2.1"
+  }
+}
