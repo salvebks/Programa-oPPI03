@@ -1,11 +1,22 @@
-import express from 'express';
+﻿import express from 'express';
+import session from 'express-session';
 // endereço e porta do servidor
 const host = 'localhost';
 const port = 3000;
 
 // criando a aplicação usando express
 const app = express();
-
+// a sessao devera ser parametrizada com uma chave secreta
+app.use(session({
+    secret: 'M1nh4Ch4v3S3cr3t4',
+    resave: true, //a cada requisicao, a sessao sera salva, mesmo que nao tenha sido modificada
+    saveUninitialized: true, //a sessao sera salva mesmo que nao tenha sido inicializada
+    cookie: {
+        secure: false, //false para desenvolvimento e true para producao (https)
+        httpOnly: true, //false para desenvolvimento e true para producao
+        maxAge: 1000 * 60 * 15 //tempo de vida do cookie em milissegundos (15 minutos)
+    }
+}));
 // permite usar arquivos estáticos da pasta public (imagens, css, etc)
 app.use(express.static('public'));
 
@@ -13,15 +24,11 @@ app.use(express.static('public'));
 app.use(express.urlencoded({ extended: false }));
 
 // vetor que vai armazenar os fornecedores cadastrados
-let fornecedores = [];
+var fornecedores = [];
 
-// variável simples para controlar login
-let logado = false;
-
-
-// função que cria o menu de navegação do sistema
-function menu(){
-return `
+// função para gerar o menu de navegação
+function menu() {
+  return `
 <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
 <div class="container-fluid">
 <div>
@@ -34,6 +41,10 @@ return `
 </nav>
 `;
 }
+
+
+
+
 
 
 // rota da página inicial
@@ -57,11 +68,12 @@ ${menu()}
 <h2>Bem vindo ao Sistema de Fornecedores</h2>
 <img src="/logo-fipp-BCC.png" width="400"style="margin-top:250px">
 
+</div>
+
 </body>
 </html>
 `);
 });
-
 
 // página que mostra o formulário de cadastro de fornecedor
 app.get('/fornecedor',(requisicao,resposta)=>{
@@ -73,6 +85,12 @@ let lista = fornecedores.map(f => `
 <td>${f.razao}</td>
 <td>${f.fantasia}</td>
 <td>${f.cidade}</td>
+<td>${f.email}</td>
+<td>${f.telefone}</td>
+<td>${f.endereco}</td>
+<td>${f.uf}</td>
+<td>${f.cep}</td>
+
 </tr>
 `).join("");
 
@@ -143,6 +161,11 @@ SENHA
 <th>Razão Social</th>
 <th>Fantasia</th>
 <th>Cidade</th>
+<th>Email</th>
+<th>Telefone</th>
+<th>Endereço</th>
+<th>UF</th>
+<th>CEP</th>
 </tr>
 
 ${lista}
@@ -259,6 +282,7 @@ resposta.send(`
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet">
 </head>
 
+
 <body>
 
 ${menu()}
@@ -270,8 +294,9 @@ ${menu()}
 <!-- formulário de login -->
 <form method="POST" action="/login">
 
+
 Email
-<input class="form-control" name="Email de login">
+<input class="form-control" name="email">
 
 Senha
 <input class="form-control" type="password" name="senha">
@@ -294,59 +319,87 @@ Senha
 // rota que processa o login
 app.post('/login',(requisicao,resposta)=>{
 
-const {usuario,senha} = requisicao.body;
+const {email,senha} = requisicao.body;
 
 let erros = [];
 
 // validação dos campos
-if(!usuario) erros.push("Usuário não informado");
+if(!email) erros.push("Email não informado");
 if(!senha) erros.push("Senha não informada");
 
 if(erros.length > 0){
+  return resposta.send(`
+  <!DOCTYPE html>
+  <html>
+  <head>
+    <meta charset="UTF-8">
+    <title>Erro de Login</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet">
+  </head>
+  <body>
+    ${menu()}
+    <div class="container mt-5">
+      <div class="alert alert-danger">
+        <h3>Erro no Login</h3>
+        ${erros.join('<br>')}
+        <br><br>
+        <a href="/login" class="btn btn-primary">Voltar</a>
+      </div>
+    </div>
+  </body>
+  </html>
+  `);
+}
 
-resposta.send(menu()+`
+// validacao estatica
+if(email == "admin@empresa.com" && senha == "123456"){
+    logado = true;
+    return resposta.send(`
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Login</title>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body>
+${menu()}
 <div class="container mt-5">
-<div class="alert alert-danger">
-${erros.join("<br>")}
+  <div class="alert alert-success">
+    Login realizado com sucesso
+  </div>
 </div>
-</div>
+</body>
+</html>
 `);
-
-}
-else{
-
-// procura o usuário pelo email
-let usuarioEncontrado = fornecedores.find(f => f.email === usuario);
-
-// verifica se usuário e senha estão corretos
-if(!usuarioEncontrado || usuarioEncontrado.senha !== senha){
-
-resposta.send(menu()+`
+}else{
+    resposta.send(`
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Login</title>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body>
+${menu()}
 <div class="container mt-5">
-<div class="alert alert-danger">
-Usuário ou senha inválidos
+<h2>Login</h2>
+<!-- formulário de login -->
+<form method="POST" action="/login">
+Email
+<input class="form-control" name="email">
+Senha
+<input class="form-control" type="password" name="senha">
+<span class="text-danger">Email ou senha incorretos</span>
+<br>
+<button class="btn btn-success">Entrar</button>
+</form>
 </div>
-</div>
+</body>
+</html>
 `);
-
 }
-else{
-
-// login realizado
-logado = true;
-
-resposta.send(menu()+`
-<div class="container mt-5">
-<div class="alert alert-success">
-Login realizado com sucesso
-</div>
-</div>
-`);
-
-}
-
-}
-
 });
 
 
@@ -356,17 +409,34 @@ app.get('/logout',(requisicao,resposta)=>{
 // altera status de login
 logado=false;
 
-resposta.send(menu()+`
+resposta.send(`
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Logout</title>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body>
+${menu()}
 <div class="container mt-5">
 <div class="alert alert-info">
 Logout efetuado com sucesso!
 </div>
 </div>
+</body>
+</html>
 `);
 
 });
-
-
+//Middleware para verificar se o usuário está logado
+function estaLogado(requisicao,resposta,next){
+    if(logado){
+         next();
+    }else{
+        resposta.redirect("/login");
+        }
+}
 // inicia o servidor
 app.listen(port, host, () => {
 console.log(`Servidor rodando em http://${host}:${port}`);
