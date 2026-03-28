@@ -27,16 +27,19 @@ app.use(express.urlencoded({ extended: false }));
 var fornecedores = [];
 
 // função para gerar o menu de navegação
-function menu() {
+function menu(requisicao) {
   return `
 <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
 <div class="container-fluid">
 <div>
-<a class="btn btn-outline-light m-1" href="/">Home</a>
+<a class="btn btn-outline-light m-1" href="/home">Home</a>
 <a class="btn btn-outline-light m-1" href="/fornecedor">Cadastro Fornecedor</a>
 <a class="btn btn-outline-light m-1" href="/login">Login</a>
 <a class="btn btn-outline-light m-1" href="/logout">Logout</a>
 </div>
+</div>
+<div>
+${requisicao?.session?.usuario ? `<span class="navbar-text text-light">Logado como: ${requisicao.session.usuario.email}</span>` : ''}
 </div>
 </nav>
 `;
@@ -49,34 +52,32 @@ function menu() {
 
 // rota da página inicial
 app.get('/', (requisicao,resposta)=>{
-
-resposta.send(`
-<!DOCTYPE html>
-<html>
-<head>
-<meta charset="UTF-8">
-<title>Home</title>
-<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet">
-</head>
-
-<body>
-
-${menu()}
-
-<div class="container mt-5">
-
-<h2>Bem vindo ao Sistema de Fornecedores</h2>
-<img src="/logo-fipp-BCC.png" width="400"style="margin-top:250px">
-
-</div>
-
-</body>
-</html>
-`);
+    resposta.redirect("/login");
 });
+app.get('/home', estaLogado, (requisicao, resposta) => {
+    resposta.send(`
+    <!DOCTYPE html>
+    <html>
+    <head>
+    <meta charset="UTF-8">
+    <title>Home</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet">
+    </head>
 
+    <body>
+
+    ${menu(requisicao)}
+
+    <div class="container mt-5">
+        <h2>Bem-vindo ao sistema!</h2>
+    </div>
+
+    </body>
+    </html>
+    `);
+});
 // página que mostra o formulário de cadastro de fornecedor
-app.get('/fornecedor',(requisicao,resposta)=>{
+app.get('/fornecedor', estaLogado, (requisicao,resposta)=>{
 
 // cria as linhas da tabela com os fornecedores cadastrados
 let lista = fornecedores.map(f => `
@@ -105,7 +106,7 @@ resposta.send(`
 
 <body>
 
-${menu()}
+${menu(requisicao)}
 
 <div class="container mt-4">
 
@@ -181,7 +182,8 @@ ${lista}
 
 
 // rota que recebe os dados do formulário de fornecedor
-app.post('/fornecedor',(requisicao,resposta)=>{
+app.post('/fornecedor',estaLogado,(requisicao,resposta)=>{
+
 
 // pegando os dados enviados pelo formulário
 const {cnpj,razao,fantasia,endereco,cidade,uf,cep,email,telefone,senha} = requisicao.body;
@@ -234,7 +236,7 @@ resposta.send(`
 
 <body>
 
-${menu()}
+${menu(requisicao)}
 
 <div class="container mt-5">
 
@@ -271,7 +273,7 @@ resposta.redirect("/fornecedor");
 
 
 // página de login
-app.get('/login',(requisicao,resposta)=>{
+app.get('/login', (requisicao,resposta)=>{
 
 resposta.send(`
 <!DOCTYPE html>
@@ -285,7 +287,7 @@ resposta.send(`
 
 <body>
 
-${menu()}
+
 
 <div class="container mt-5">
 
@@ -337,7 +339,6 @@ if(erros.length > 0){
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet">
   </head>
   <body>
-    ${menu()}
     <div class="container mt-5">
       <div class="alert alert-danger">
         <h3>Erro no Login</h3>
@@ -353,25 +354,9 @@ if(erros.length > 0){
 
 // validacao estatica
 if(email == "admin@empresa.com" && senha == "123456"){
-    logado = true;
-    return resposta.send(`
-<!DOCTYPE html>
-<html>
-<head>
-<meta charset="UTF-8">
-<title>Login</title>
-<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet">
-</head>
-<body>
-${menu()}
-<div class="container mt-5">
-  <div class="alert alert-success">
-    Login realizado com sucesso
-  </div>
-</div>
-</body>
-</html>
-`);
+   requisicao.session.logado = true; //armazenando o status de login na sessão
+    requisicao.session.usuario = {email}; //armazenando o email do usuário logado na sessão
+    resposta.redirect("/home");
 }else{
     resposta.send(`
 <!DOCTYPE html>
@@ -382,7 +367,6 @@ ${menu()}
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet">
 </head>
 <body>
-${menu()}
 <div class="container mt-5">
 <h2>Login</h2>
 <!-- formulário de login -->
@@ -404,34 +388,16 @@ Senha
 
 
 // rota de logout
-app.get('/logout',(requisicao,resposta)=>{
+app.get('/logout',estaLogado,(requisicao,resposta)=>{
 
-// altera status de login
-logado=false;
+    requisicao.session.destroy();
 
-resposta.send(`
-<!DOCTYPE html>
-<html>
-<head>
-<meta charset="UTF-8">
-<title>Logout</title>
-<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet">
-</head>
-<body>
-${menu()}
-<div class="container mt-5">
-<div class="alert alert-info">
-Logout efetuado com sucesso!
-</div>
-</div>
-</body>
-</html>
-`);
-
+    resposta.redirect("/login");
 });
+
 //Middleware para verificar se o usuário está logado
 function estaLogado(requisicao,resposta,next){
-    if(logado){
+    if(requisicao.session?.logado){
          next();
     }else{
         resposta.redirect("/login");
