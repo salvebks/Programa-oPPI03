@@ -1,11 +1,15 @@
 ﻿import express from 'express';
 import session from 'express-session';
+import cookieParser from 'cookie-parser';
+
 // endereço e porta do servidor
 const host = 'localhost';
 const port = 3000;
 
 // criando a aplicação usando express
 const app = express();
+// usando o cookie parser para ler cookies
+app.use(cookieParser());
 // a sessao devera ser parametrizada com uma chave secreta
 app.use(session({
     secret: 'M1nh4Ch4v3S3cr3t4',
@@ -22,6 +26,7 @@ app.use(express.static('public'));
 
 // permite ler dados enviados por formulário
 app.use(express.urlencoded({ extended: false }));
+// permite ler cookies
 
 // vetor que vai armazenar os fornecedores cadastrados
 var fornecedores = [];
@@ -44,15 +49,8 @@ ${requisicao?.session?.usuario ? `<span class="navbar-text text-light">Logado co
 </nav>
 `;
 }
-
-
-
-
-
-
 // rota da página inicial
-app.get('/', (requisicao,resposta)=>{
-    resposta.redirect("/login");
+app.get('/',estaLogado, (requisicao,resposta)=>{
 });
 app.get('/home', estaLogado, (requisicao, resposta) => {
     resposta.send(`
@@ -274,8 +272,9 @@ resposta.redirect("/fornecedor");
 
 // página de login
 app.get('/login', (requisicao,resposta)=>{
+const ultimoAcesso = requisicao.cookies?.ultimoAcesso || "Nunca Acessou";
 
-resposta.send(`
+resposta.write(`
 <!DOCTYPE html>
 <html>
 <head>
@@ -283,81 +282,53 @@ resposta.send(`
 <title>Login</title>
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet">
 </head>
-
-
-<body>
-
-
-
-<div class="container mt-5">
-
-<h2>Login</h2>
-
-<!-- formulário de login -->
-<form method="POST" action="/login">
-
-
-Email
-<input class="form-control" name="email">
-
-Senha
-<input class="form-control" type="password" name="senha">
-
-<br>
-
-<button class="btn btn-success">Entrar</button>
-
-</form>
-
-</div>
-
-</body>
-</html>
+    <body>
+        <div class="container mt-5">
+            <h2>Login</h2>
+        <!-- formulário de login -->
+        <form method="POST" action="/login">
+            Email
+                <input class="form-control" name="email">
+                        Senha
+                    <input class="form-control" type="password" name="senha">
+                        <br>
+                    <button class="btn btn-success">
+                        Entrar
+                    </button>`);
+    resposta.write(`
+        
+                <p class="mt-5 mb-3 text-body-secondary">Último acesso: ${ultimoAcesso}
+            `);
+        resposta.write(`
+                </p>
+                </form>
+            </div>
+    </body>
+    </html>
 `);
-
 });
 
 
 // rota que processa o login
 app.post('/login',(requisicao,resposta)=>{
-
-const {email,senha} = requisicao.body;
-
+    const email = requisicao.body.email;
+    const senha = requisicao.body.senha;
 let erros = [];
-
-// validação dos campos
 if(!email) erros.push("Email não informado");
 if(!senha) erros.push("Senha não informada");
-
-if(erros.length > 0){
-  return resposta.send(`
-  <!DOCTYPE html>
-  <html>
-  <head>
-    <meta charset="UTF-8">
-    <title>Erro de Login</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet">
-  </head>
-  <body>
-    <div class="container mt-5">
-      <div class="alert alert-danger">
-        <h3>Erro no Login</h3>
-        ${erros.join('<br>')}
-        <br><br>
-        <a href="/login" class="btn btn-primary">Voltar</a>
-      </div>
-    </div>
-  </body>
-  </html>
-  `);
-}
-
 // validacao estatica
 if(email == "admin@empresa.com" && senha == "123456"){
-   requisicao.session.logado = true; //armazenando o status de login na sessão
-    requisicao.session.usuario = {email}; //armazenando o email do usuário logado na sessão
-    resposta.redirect("/home");
-}else{
+     requisicao.session.logado = true; // marca a sessão como logada
+     // armazena a data do último acesso em um cookie
+    const DataUltimoAcesso = new Date();
+    resposta.cookie("ultimoAcesso", DataUltimoAcesso.toLocaleString(), {
+    maxAge: 1000 * 60 * 60 * 24 * 30,
+    httpOnly: true,
+}); 
+    resposta.redirect("/home"); 
+}
+else{
+    const ultimoAcesso = requisicao.cookies?.ultimoAcesso || "Nunca Acessou";
     resposta.send(`
 <!DOCTYPE html>
 <html>
@@ -378,6 +349,9 @@ Senha
 <span class="text-danger">Email ou senha incorretos</span>
 <br>
 <button class="btn btn-success">Entrar</button>
+<p class="mt-5 mb-3 text-body-secondary">
+Último acesso: ${ultimoAcesso}
+</p>
 </form>
 </div>
 </body>
@@ -404,6 +378,6 @@ function estaLogado(requisicao,resposta,next){
         }
 }
 // inicia o servidor
-app.listen(port, host, () => {
-console.log(`Servidor rodando em http://${host}:${port}`);
+app.listen(port, () => {
+console.log(`Servidor rodando em http://localhost:${port}`);
 });
