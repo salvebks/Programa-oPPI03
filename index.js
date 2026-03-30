@@ -69,7 +69,7 @@ app.get('/home', estaLogado, (requisicao, resposta) => {
     <div class="container mt-5">
         <h2>Bem-vindo ao sistema!</h2>
     </div>
-
+    <img src="/home.png" class="img-fluid mt-4" alt="Imagem de boas-vindas" style="max-width: 400px; display: block; margin: 0 auto;margin-left: 50px;">
     </body>
     </html>
     `);
